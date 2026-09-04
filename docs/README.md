@@ -4,8 +4,13 @@ Written material that supports the code. The thesis text itself lives in
 [`thesis/`](../thesis/); this is the working documentation you draw on while
 writing it.
 
+**Start here: [status.md](status.md)** — the living status document. What is
+verified about the robot, what is open, what comes next. Read it first when
+picking the project back up, and update it when something is settled.
+
 | Directory | Contents |
 |---|---|
+| `guides/` | Step-by-step walkthroughs: [object-detection-pipeline.md](guides/object-detection-pipeline.md) and the [ros2-command-reference.md](guides/ros2-command-reference.md). |
 | `adr/` | Architecture Decision Records — see [adr/README.md](adr/README.md). |
 | `architecture/` | System diagrams, node/topic graphs, TF trees, data flow. |
 | `hardware/` | Sensor datasheets, wiring, mounting, robot serial and configuration, network setup. |

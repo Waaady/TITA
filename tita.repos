@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# vcstool manifest for upstream sources. These are NOT vendored into git -
+# they are pulled on demand so the thesis repo only contains our own work.
+#
+#   sudo apt install python3-vcstool
+#   vcs import external < tita.repos
+#   vcs pull external          # update all
+#   vcs export external        # freeze exact commits before the thesis deadline
+#
+# IMPORTANT: pin every entry to a commit hash (not a branch) before submitting.
+# A moving upstream makes the results in your thesis unreproducible.
+# ---------------------------------------------------------------------------
+repositories:
+
+  # --- DDT / TITA official ------------------------------------------------
+  TITA-SDK-ROS2:
+    type: git
+    url: https://github.com/DDTRobot/TITA-SDK-ROS2.git
+    version: master          # TODO pin: provides tita_locomotion_interfaces,
+                             # tita_bringup, path_controller, path_follower
+  TITA_Description:
+    type: git
+    url: https://github.com/DDTRobot/TITA_Description.git
+    version: master          # TODO pin: URDF for ros2_control / RViz / sim
+  TITA_ROS2_Control_Sim:
+    type: git
+    url: https://github.com/DDTRobot/TITA_ROS2_Control_Sim.git
+    version: master          # TODO pin: Gazebo + Webots simulation
+  TITA-Development-Manual:
+    type: git
+    url: https://github.com/DDTRobot/TITA-Development-Manual.git
+    version: master          # TODO pin: reference docs, topic list
+
+  # --- Object detection ---------------------------------------------------
+  YOLOX:
+    type: git
+    url: https://github.com/Megvii-BaseDetection/YOLOX.git
+    version: main            # TODO pin. Apache-2.0.
+                             # install: pip install -e external/YOLOX

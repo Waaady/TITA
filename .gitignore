@@ -1,0 +1,81 @@
+# ---- ROS 2 / colcon workspace --------------------------------------------
+build/
+install/
+log/
+.colcon/
+# external/ is populated by `vcs import` from tita.repos, never committed
+external/*
+!external/README.md
+
+# ---- Python ---------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---- Data: large, regenerable, or robot-specific -------------------------
+# Keep the folder structure in git, keep the payload out.
+data/raw/**
+data/interim/**
+data/processed/**
+data/bags/**
+data/maps/**
+!data/**/.gitkeep
+!data/**/README.md
+# Dataset manifests / annotation indices are small and SHOULD be tracked:
+!data/processed/**/*.json
+!data/**/*.yaml
+
+# ---- Models ---------------------------------------------------------------
+models/checkpoints/**
+models/onnx/**
+models/tensorrt/**
+!models/**/.gitkeep
+!models/**/README.md
+!models/**/*.yaml
+# TensorRT engines are tied to one GPU + one TensorRT version. Never commit.
+*.engine
+*.plan
+
+# ---- Training / experiment outputs ---------------------------------------
+YOLOX_outputs/
+runs/
+outputs/
+wandb/
+lightning_logs/
+events.out.tfevents.*
+
+# ---- rosbag2 --------------------------------------------------------------
+*.db3
+*.mcap
+metadata.yaml.bak
+
+# ---- Thesis build artefacts ----------------------------------------------
+thesis/**/*.aux
+thesis/**/*.bbl
+thesis/**/*.blg
+thesis/**/*.fdb_latexmk
+thesis/**/*.fls
+thesis/**/*.log
+thesis/**/*.out
+thesis/**/*.synctex.gz
+thesis/**/*.toc
+
+# ---- Secrets / local config ----------------------------------------------
+.env
+*.local.yaml
+secrets/
+
+# ---- OS / editor ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+!.vscode/extensions.json
+.idea/

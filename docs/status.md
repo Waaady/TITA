@@ -7,6 +7,22 @@ out — it is the first thing to read when picking the project back up.
 
 ---
 
+## Goal
+
+**Autonomous driving.** TITA navigating indoor environments on its own, and
+mapping them while it drives. Object detection and SLAM are the two enabling
+capabilities; they are means, not ends.
+
+Use this as the tie-breaker when priorities are unclear: does it move the robot
+closer to driving autonomously?
+
+**Secondary, and deliberately kept secondary:** TITA balances on two wheels and
+pitches constantly to stay upright, whereas SLAM is normally run on stable
+platforms. The effect of that on mapping quality is worth recording as a side
+result — but it must not become the main line of investigation.
+
+---
+
 ## Where the project stands
 
 | Area | State |
@@ -73,7 +89,9 @@ Data rate ≈ **53 MB/s** uncompressed. Budget ~3.2 GB per minute of recording.
 
 ## Open questions
 
-Ordered by how much they affect the thesis.
+Ordered by how much they affect the thesis. The project-level risks behind these
+are in [risks.md](risks.md) — in particular **R2**, whether the robot can be
+commanded from our own code at all, which is on the critical path.
 
 | # | Question | How to settle it |
 |---|---|---|

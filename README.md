@@ -3,12 +3,30 @@
 Bachelor thesis project on the **TITA** wheeled-bipedal robot
 ([Direct Drive Tech](https://en.directdrive.com/TITA)).
 
-Two capabilities are built on top of the stock platform:
+## Goal
+
+**The objective of this thesis is autonomous driving:** TITA navigating indoor
+environments on its own, and mapping them while it drives.
+
+Two capabilities are built on top of the stock platform to make that possible:
 
 1. **Object detection** — a YOLOX detector on the onboard Jetson, lifted into 3D
    and fed to the navigation stack as dynamic obstacles / semantic targets.
 2. **Indoor mapping** — SLAM from the onboard sensors, producing a 2D occupancy
    grid for Nav2 plus a 3D map for the thesis evaluation.
+
+Everything in this repository serves that goal. When a decision is unclear, the
+tie-breaker is whether it moves the robot closer to driving autonomously.
+
+### Secondary observation, not the objective
+
+TITA is a **balancing** wheeled biped: it stays upright on two wheels and pitches
+continuously to do so. SLAM is normally run on stable platforms, often slowly or
+from a standstill, so the effect of a constantly pitching sensor mount on mapping
+quality is worth recording as a side result.
+
+It is explicitly **not** the aim of this work. Do not let it grow into the main
+line of investigation — it is an observation made along the way to autonomy.
 
 > Status: **architecture scaffold**. Folders, dependency manifests and the
 > module contracts are in place; no implementation yet.
@@ -26,14 +44,22 @@ Two capabilities are built on top of the stock platform:
 | Vendor SDK | [TITA-SDK-ROS2](https://github.com/DDTRobot/TITA-SDK-ROS2) |
 | Simulation | Gazebo and Webots via `TITA_ROS2_Control_Sim` |
 
-**The single most important integration detail:** the DDT SDK does *not* accept
-`geometry_msgs/Twist`. It consumes
-`tita_locomotion_interfaces/msg/LocomotionCmd` on `command/user/command`.
-Nav2 emits `cmd_vel`. Everything in between lives in
-[src/tita_locomotion_bridge/](src/tita_locomotion_bridge/) — that package is the
-seam between "standard ROS navigation" and "this specific robot", and keeping it
-isolated is what lets the rest of the stack be developed and tested in
-simulation.
+**The key integration detail:** the SDK entry point documented in the quickstart
+is `tita_locomotion_interfaces/msg/LocomotionCmd` on `command/user/command`,
+while Nav2 emits `geometry_msgs/Twist` on `cmd_vel`. The robot also exposes
+`command/manager/cmd_twist`, which *is* a plain `Twist` — whether that is an
+input we may publish to or the command manager's internal output is still
+unverified. Everything in that seam lives in
+[src/tita_locomotion_bridge/](src/tita_locomotion_bridge/); keeping it isolated
+is what lets the rest of the stack be developed and tested in simulation.
+
+Since autonomous driving is the goal, this seam is on the critical path — the
+robot cannot drive itself until commands reach the motors.
+
+The real topic names and sensor mapping are recorded in
+[docs/hardware/topic-map.md](docs/hardware/topic-map.md), captured from the robot
+itself. Note that all robot topics are namespaced by serial (`/tita3037072/...`);
+the namespace differs per robot, so never hardcode it.
 
 ---
 

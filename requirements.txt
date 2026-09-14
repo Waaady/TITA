@@ -35,16 +35,28 @@ albumentations>=1.4          # detection-time augmentation
 # into external/YOLOX and installed editable:
 #     pip install -e external/YOLOX
 # See perception/README.md.
-torch==2.1.2
-torchvision==0.16.2
+#
+# torch: PyPI only serves CPU-only wheels on Windows, and the CUDA wheels it
+# serves on Linux (cu126) do not support Blackwell GPUs (RTX 50xx, sm_120).
+# The cu128 builds from PyTorch's own index do. --extra-index-url keeps PyPI
+# as the primary index for everything else; pip prefers the "+cu128" local
+# version over the plain PyPI one.
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch==2.8.0
+torchvision==0.23.0
 thop>=0.1.1                  # FLOP counting, required by YOLOX exps
 tabulate>=0.9
 psutil>=5.9
+ninja>=1.11                  # YOLOX setup.py build dependency
 
 # --- Model export / inference ---------------------------------------------
 onnx>=1.15
 onnxsim>=0.4.36
-onnxruntime-gpu>=1.17        # workstation only; Jetson: see requirements-jetson.txt
+# onnxruntime-gpu needs CUDA 12 + cuDNN 9 DLLs at runtime. On the workstation
+# they are borrowed from the torch cu128 wheel via onnxruntime.preload_dlls()
+# (done in src/tita_perception/.../detectors/yolox_onnx.py). No separate CUDA
+# toolkit install is needed. Jetson: see requirements-jetson.txt.
+onnxruntime-gpu>=1.21        # >=1.21 for preload_dlls()
 
 # --- Experiment tracking / evaluation -------------------------------------
 tensorboard>=2.16

@@ -14,6 +14,13 @@ Anticipated:
 | `benchmark_inference.py` | Latency and throughput per backend on the Orin. |
 | `extract_frames.py` | Bag -> images for annotation. |
 
+Existing:
+
+| Script | Purpose |
+|---|---|
+| `download_yolox_weights.py` | Fetch pretrained COCO YOLOX `.pth` + `.onnx` from the upstream release into `models/`. |
+| `run_detection_on_bag.py` | Replay a `.db3` bag through the detection pipeline (see `src/tita_perception/README.md`), write JSONL, optional debug video. |
+
 ## Conventions
 
 - `set -euo pipefail` in every shell script. A deploy script that keeps going

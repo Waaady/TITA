@@ -1,0 +1,53 @@
+# tita_perception - detector and pipeline parameters.
+#
+# Every tunable lives here, not in code. Paths are relative to the repo's
+# models/ directory unless absolute. The same keys become ROS parameters
+# once the node exists (see README).
+
+detector:
+  backend: onnx                 # onnx | torch
+  input_size: [640, 640]        # [height, width] the network runs at
+  conf_threshold: 0.3           # objectness * class confidence
+  nms_threshold: 0.45           # IoU for class-aware NMS
+  device: cpu                   # onnx: cpu | cuda | tensorrt   torch: cpu | cuda
+  # class_names: null           # default: 80 COCO classes (pretrained weights)
+  # class_whitelist: [person, chair]   # by name; null = all classes
+
+  onnx:
+    model_path: onnx/yolox_s.onnx
+    decoded_output: false       # official export = raw grid output -> decoded here
+    num_threads: null           # CPU intra-op threads; null = ORT default
+
+  torch:
+    checkpoint_path: checkpoints/yolox_s.pth
+    exp_name: yolox-s           # architecture; must match the checkpoint
+    exp_file: null              # or a perception/configs/*.py experiment file
+    fp16: false                 # CUDA only
+
+pipeline:
+  # latest: one-slot buffer, always detect on the newest frame, drop the rest
+  #         (what runs on the robot).
+  # all:    bounded FIFO with back-pressure, nothing dropped (offline eval).
+  frame_buffer: latest
+  queue_size: 8                 # only for frame_buffer: all
+  # Classes reported as dynamic obstacles (is_dynamic = true).
+  dynamic_classes: [person, bicycle, car, motorcycle, bus, truck, cat, dog, horse]
+  # Apply the CameraInfo distortion model when computing bearing angles.
+  # true: image/left is the RAW image (CameraInfo frame_id "left_img_raw",
+  # visible barrel distortion, ~118 deg horizontal FOV). A plain pinhole
+  # bearing is off by up to 14 deg at the image edge. Set false only for a
+  # rectified image topic.
+  undistort_angles: true
+  border_margin_px: 2           # box within this many px of the edge => touches_border
+
+tracking:
+  enabled: true
+  iou_threshold: 0.3
+  max_misses: 5                 # frames a track survives unmatched
+  smoothing: 0.5                # EMA weight of the newest velocity sample
+  same_class_only: false
+
+bag:
+  image_topic_suffix: perception/camera/image/left
+  camera_info_topic_suffix: perception/camera/info/left
+  speed: 1.0                    # replay speed; 0 = as fast as possible

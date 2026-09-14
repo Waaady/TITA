@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated: 2026-09-04**
+**Last updated: 2026-09-13**
 
 A living document. Update it whenever something is verified, decided, or ruled
 out — it is the first thing to read when picking the project back up.
@@ -28,11 +28,11 @@ result — but it must not become the main line of investigation.
 | Area | State |
 |---|---|
 | Repository scaffold | **Done.** Folders, dependency manifests, module contracts. |
-| ROS 2 packages | **Not started.** No `package.xml` / `setup.py` yet, so `colcon build` has nothing to build. |
-| Robot access | **Working.** SSH, topics inspected, first bag recorded. |
-| Object detection | Walkthrough phases 0–1 done. See [guides/object-detection-pipeline.md](guides/object-detection-pipeline.md). |
+| ROS 2 packages | `tita_perception` has `package.xml` / `setup.py` (ament_python) and installs with pip. No node yet; the other packages are still empty. |
+| Robot access | **Working.** SSH, topics inspected, bags recorded. |
+| Object detection | **Phases 4–5 done offline (2026-09-13):** YOLOX-s runs on bag frames through both ONNX Runtime and PyTorch, with the newest-frame policy and tracking. See [../src/tita_perception/README.md](../src/tita_perception/README.md). Phase 3/6 (ROS node, Foxglove) not started. |
 | Mapping | Not started. |
-| Git | **Nothing committed yet.** Everything is still untracked in the working tree. |
+| Git | Scaffold and docs committed. Detection code is in the working tree, not yet committed. |
 
 ---
 
@@ -74,14 +74,27 @@ Two consequences worth remembering:
   `point_cloud` is not started. This blocks phase 7 (2D → 3D projection), but
   nothing before it.
 
+### Camera (measured from the 2026-09-04 bag)
+
+- `image/left` is **960x600 `bgr8`**, ~36 Hz in the bag, frame `tita3037072/left_camera`.
+- CameraInfo: `rational_polynomial`, 8 coefficients, fx ≈ fy ≈ 479, principal
+  point ≈ (479, 298), frame `left_img_raw`. **The image is raw, not rectified**:
+  strong barrel distortion, ~118° horizontal FOV after undistortion. Any angle
+  or 3D work must undistort first; the pinhole-only bearing is 14° off at the edge.
+- CameraInfo `P` has a non-zero Tx (−71 → baseline ≈ 0.15 m if that is fx·b) —
+  odd for the *left* camera of a stereo pair. Unverified.
+
 ### Recordings
 
 | Bag | Duration | Contents | Size |
 |---|---|---|---|
 | `indoor_run_01` | 14.5 s | 470 images, 136 CameraInfo, 1155 tf, 1 tf_static | 777 MB |
+| `2026-09-04_lab_moving_01` (`indoor_run_03`) | 27 s | 973 images, 266 CameraInfo, 2157 tf, 1 tf_static | 1.68 GB |
 
-Recorded with the robot **stationary**. Sufficient for walkthrough phases 3–6;
-phase 7 and mapping will need a moving recording.
+`indoor_run_01` was recorded **stationary**; `lab_moving_01` with the robot
+moving through the lab and a corridor with people walking. Both are sqlite3
+`.db3` (MCAP plugin not installed on the robot); `tita_perception.bag` reads
+them without ROS.
 
 Data rate ≈ **53 MB/s** uncompressed. Budget ~3.2 GB per minute of recording.
 
@@ -100,17 +113,37 @@ commanded from our own code at all, which is on the critical path.
 | 3 | Is a TITA Tower physically attached? | `ros2 topic hz /tower/mapping/odometry`. If yes, there is a LiDAR and the mapping chapter changes shape. See [hardware/topic-map.md](hardware/topic-map.md). |
 | 4 | Which node publishes the camera images? | `ros2 topic info /tita3037072/perception/camera/image/left --verbose`. No camera driver node appeared in `ros2 node list`, which is odd — and the answer probably also explains question 1. |
 | 5 | Actual sensor part numbers and manufacturers | Not yet determined. Topic names give only functional roles. Needs `dmesg`, `/dev/v4l/by-id/`, `/sys/bus/i2c/devices/`, device tree. Needed for the hardware chapter. |
+| 6 | Is there a rectified image topic, and what is the stereo baseline? | `image/left` is raw (see Camera above). Check `ros2 topic list` for a `rect` topic and the right camera's CameraInfo. Matters for phase 7. |
 
 ---
 
+## Detection pipeline — state on 2026-09-13
+
+Implemented in `src/tita_perception/` (pure Python, no ROS), run via
+`scripts/run_detection_on_bag.py`, 41 tests in `src/tita_perception/test/`.
+
+- `.db3` → chronological frames → **one-slot latest-frame buffer** → YOLOX →
+  IoU tracker → JSONL with box, label/score, foot point, bearing/elevation,
+  track id, pixel velocity, bearing rate, scale rate. The approach/path
+  decision is left to a later component.
+- Workstation numbers (YOLOX-s 640, 960x600 input): ONNX CPU ~40 ms (drops a
+  third of the frames at 36 Hz but stays current), ONNX CUDA ~8 ms, PyTorch
+  CUDA ~10 ms — nothing dropped.
+- ONNX and PyTorch backends agree on real frames (export-equivalence test).
+- Workstation env: conda `TITA` (Python 3.10). torch had to be moved to
+  **2.8.0+cu128** — the RTX 5080 (Blackwell, sm_120) is unsupported by the
+  torch 2.1.2 that was pinned before. `requirements.txt` updated accordingly.
+
 ## Next steps
 
-1. Copy `indoor_run_01` to `data/bags/` and open it in Foxglove — walkthrough
-   phase 2.
-2. Write the frame-extraction script (bag → PNG) in `perception/` — the first
-   real code of the project, and the start of phase 4.
-3. Minimal image subscriber node (phase 3), watching out for the QoS trap.
-4. Commit. Nothing is in git yet.
+1. Commit the detection code.
+2. Phase 3/5: the ROS 2 node in `tita_perception` — image subscriber with
+   `qos_profile_sensor_data`, queue depth 1, calling `DetectionPipeline.process`,
+   publishing `vision_msgs/Detection2DArray`. Run it against `ros2 bag play`.
+3. Phase 6: Foxglove `ImageAnnotations` + layout.
+4. Approach / path-intrusion component consuming the `FrameResult` record.
+5. Open the bags in Foxglove (phase 2) — never done, still useful for the thesis figures.
+6. Settle the open questions below, especially the missing `point_cloud`.
 
 ---
 

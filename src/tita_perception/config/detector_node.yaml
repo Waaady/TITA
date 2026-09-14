@@ -1,0 +1,17 @@
+# ROS parameters of detector_node. Only what is ROS-specific lives here;
+# detector, tracking and pipeline settings come from config_file so the
+# node and the offline bag script read the same detector.yaml.
+#
+# ROS parameter rules: no null (use ""), no empty lists, every key must be
+# declared in the node or it is silently ignored.
+
+/**:                                  # any node name, any namespace
+  ros__parameters:
+    config_file: ""                   # "" -> share/tita_perception/config/detector.yaml
+    models_root: ""                   # "" -> <cwd>/models; run from the workspace root
+    image_topic: perception/camera/image/left        # relative: namespace comes from launch
+    camera_info_topic: perception/camera/info/left
+    detections_topic: perception/detections
+    publish_debug_image: false        # boxes drawn into an image topic; costs fps on the Orin
+    debug_image_topic: perception/detections/image
+    use_sim_time: false               # true when replaying a bag with --clock

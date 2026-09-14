@@ -21,15 +21,14 @@ setup(
         "torch": ["torch", "torchvision"],  # + pip install -e external/YOLOX
     },
     zip_safe=True,
-    maintainer="Constantin Dendtel",
-    maintainer_email="constantin.dendtel@gmx.de",
+    maintainer="TODO",
+    maintainer_email="todo@example.com",
     description="YOLOX object detection on the TITA robot.",
     license="TODO",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            # ROS node entry points are added here once the node exists, e.g.
-            # "detector_node = tita_perception.nodes.detector_node:main",
+            "detector_node = tita_perception.nodes.detector_node:main",
         ],
     },
 )

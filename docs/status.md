@@ -28,7 +28,7 @@ result — but it must not become the main line of investigation.
 | Area | State |
 |---|---|
 | Repository scaffold | **Done.** Folders, dependency manifests, module contracts. |
-| ROS 2 packages | `tita_perception` has `package.xml` / `setup.py` (ament_python) and installs with pip. No node yet; the other packages are still empty. |
+| ROS 2 packages | `tita_perception` is a complete `ament_python` package: `detector_node` + launch + params written 2026-09-14, **not yet built or run** (no ROS 2 on the workstation). Other packages still empty. |
 | Robot access | **Working.** SSH, topics inspected, bags recorded. |
 | Object detection | **Phases 4–5 done offline (2026-09-13):** YOLOX-s runs on bag frames through both ONNX Runtime and PyTorch, with the newest-frame policy and tracking. See [../src/tita_perception/README.md](../src/tita_perception/README.md). Phase 3/6 (ROS node, Foxglove) not started. |
 | Mapping | Not started. |
@@ -137,9 +137,8 @@ Implemented in `src/tita_perception/` (pure Python, no ROS), run via
 ## Next steps
 
 1. Commit the detection code.
-2. Phase 3/5: the ROS 2 node in `tita_perception` — image subscriber with
-   `qos_profile_sensor_data`, queue depth 1, calling `DetectionPipeline.process`,
-   publishing `vision_msgs/Detection2DArray`. Run it against `ros2 bag play`.
+2. Phase 3/5: build and run `detector_node` on a ROS 2 machine (Jetson or
+   WSL/Ubuntu 22.04) against `ros2 bag play`; fix what breaks.
 3. Phase 6: Foxglove `ImageAnnotations` + layout.
 4. Approach / path-intrusion component consuming the `FrameResult` record.
 5. Open the bags in Foxglove (phase 2) — never done, still useful for the thesis figures.

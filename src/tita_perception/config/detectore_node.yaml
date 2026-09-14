@@ -1,0 +1,10 @@
+/**:
+  ros_parameters:
+    config_file: ""
+    models_root: ""
+    image_topic: perception/camera/image/left
+    camera_info_topic: perception/camera/info/left
+    detections_topic: perception/detections
+    publish_debug_image: false
+    debug_image_topic: perception/debug/image
+    use_sim_time: false

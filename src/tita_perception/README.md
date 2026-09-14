@@ -138,11 +138,28 @@ this against upstream `yolox.data.data_augment.preproc` byte for byte, and
 `test_pipeline.py` checks that the ONNX and PyTorch backends agree on a real
 frame — the export-equivalence test from `tests/README.md`.
 
+### ROS 2 node (written 2026-09-14, not yet run — needs a ROS 2 machine)
+
+`tita_perception/nodes/detector_node.py`: image callback -> `LatestFrameSlot`,
+worker thread runs `DetectionPipeline.run`, publishes `vision_msgs/Detection2DArray`
+(stamp = image stamp, `id` = track id). CameraInfo is taken once and the
+subscription dropped. ROS-only parameters in `config/detector_node.yaml`;
+detector settings come from `detector.yaml` via `config_file`.
+
+```bash
+colcon build --symlink-install && source install/setup.bash
+ros2 bag play data/bags/<bag> --clock                          # terminal 1
+ros2 launch tita_perception detection.launch.py namespace:=/tita3037072 use_sim_time:=true
+ros2 topic hz /tita3037072/perception/detections               # terminal 3
+```
+
+Run `ros2 launch` from the workspace root, or set `models_root`.
+
 ### Not done yet
 
-- The ROS 2 node (`rclpy` subscription with `qos_profile_sensor_data`, queue
-  depth 1, publishing `vision_msgs/Detection2DArray`). `DetectionPipeline.process`
-  is the function it will call from the image callback.
+- Running the node on the Jetson / against `ros2 bag play`.
+- An own message in `tita_interfaces_thesis` for bearing, foot point, scale
+  rate etc. — `Detection2DArray` carries only box, label, score, track id.
 - TensorRT backend (build the engine on the Orin from `models/onnx/`).
 - Tracker is a greedy IoU matcher; swap for ByteTrack when needed, keeping
   the `TrackInfo` fields.

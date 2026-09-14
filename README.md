@@ -179,6 +179,10 @@ source install/setup.bash
 - **Decisions**: anything you would have to re-argue in the thesis defence gets
   a short ADR in [docs/adr/](docs/adr/) — detector choice, SLAM backend, sensor
   selection, coordinate conventions.
+- **Lean code**: keep every module as small and explainable as possible. No
+  unnecessary extras, no abstraction for its own sake, no options nobody asked
+  for; remove duplication instead of adding layers. Every line should be easy
+  to follow and to defend — if it is not, it is probably not needed.
 
 ---
 

@@ -4,7 +4,7 @@
   <name>tita_perception</name>
   <version>0.1.0</version>
   <description>YOLOX object detection on the TITA robot: detector backends, frame handling with drop-stale policy, tracking, 2D-to-3D projection.</description>
-  <maintainer email="constantin.dendtel@gmx.de">Constantin Dendtel</maintainer>
+  <maintainer email="todo@example.com">TODO</maintainer>
   <license>TODO</license>
 
   <!-- Runtime ROS dependencies (only used by the node, not by the pure-Python pipeline). -->

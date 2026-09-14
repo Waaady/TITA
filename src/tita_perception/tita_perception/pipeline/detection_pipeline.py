@@ -39,7 +39,10 @@ class DetectionPipeline:
     ) -> None:
         self._detector = detector
         self._tracker = tracker
-        self._angles = PixelToAngle(camera_info, undistort_angles) if camera_info else None
+        self._undistort = undistort_angles
+        self._angles: Optional[PixelToAngle] = None
+        if camera_info is not None:
+            self.set_camera_info(camera_info)
         self._dynamic = frozenset(dynamic_classes)
         self._border = border_margin_px
         self.frames_processed = 0
@@ -47,6 +50,12 @@ class DetectionPipeline:
     @property
     def detector(self) -> Detector:
         return self._detector
+
+    def set_camera_info(self, camera_info: CameraInfo) -> None:
+        """Enable bearing/elevation output. May be called after construction -
+        on the robot CameraInfo arrives on its own topic, later than the
+        first image."""
+        self._angles = PixelToAngle(camera_info, self._undistort)
 
     # -- threaded consumer -------------------------------------------------
 
@@ -62,7 +71,7 @@ class DetectionPipeline:
         while stop is None or not stop.is_set():
             item = buffer.get(timeout=poll_s)
             if item is None:
-                if getattr(buffer, "closed", False):
+                if buffer.closed:
                     break
                 continue
             frame, dropped = item

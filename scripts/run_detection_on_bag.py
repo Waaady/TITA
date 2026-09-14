@@ -20,16 +20,12 @@ import sys
 import time
 from pathlib import Path
 
-import yaml
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # Make the package importable without installing it, so this works straight
 # from a checkout. `pip install -e src/tita_perception` makes this redundant.
 sys.path.insert(0, str(REPO_ROOT / "src" / "tita_perception"))
 
-from tita_perception.detectors import build_detector  # noqa: E402
-from tita_perception.pipeline import BagFrameSource, DetectionPipeline, make_frame_buffer  # noqa: E402
-from tita_perception.tracking import IouTracker  # noqa: E402
+from tita_perception.pipeline import BagFrameSource, build_buffer, build_pipeline, load_config  # noqa: E402
 
 DEFAULT_CONFIG = REPO_ROOT / "src" / "tita_perception" / "config" / "detector.yaml"
 
@@ -68,9 +64,8 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    cfg = yaml.safe_load(args.config.read_text(encoding="utf-8"))
-    det_cfg, pipe_cfg = cfg["detector"], cfg["pipeline"]
-    trk_cfg, bag_cfg = cfg["tracking"], cfg["bag"]
+    cfg = load_config(args.config)
+    det_cfg, pipe_cfg, bag_cfg = cfg["detector"], cfg["pipeline"], cfg["bag"]
 
     if args.backend:
         det_cfg["backend"] = args.backend
@@ -82,6 +77,8 @@ def main() -> None:
         pipe_cfg["frame_buffer"] = args.buffer
     if args.speed is not None:
         bag_cfg["speed"] = args.speed
+    if args.no_track:
+        cfg["tracking"]["enabled"] = False
 
     bag_path = resolve_bag(args.bag)
     bag_name = bag_path.parent.name if bag_path.parent != REPO_ROOT else bag_path.stem
@@ -91,12 +88,7 @@ def main() -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     # -- build ---------------------------------------------------------------
-    t0 = time.perf_counter()
-    detector = build_detector(det_cfg, models_root=REPO_ROOT / "models")
-    detector.warmup()
-    print(f"detector: {detector!r}  (loaded + warm in {time.perf_counter() - t0:.1f} s)")
-
-    buffer = make_frame_buffer(pipe_cfg["frame_buffer"], pipe_cfg.get("queue_size", 8))
+    buffer = build_buffer(cfg)
     source = BagFrameSource(
         bag_path,
         buffer,
@@ -112,22 +104,9 @@ def main() -> None:
         print(f"camera: {ci.width}x{ci.height} fx={ci.fx:.1f} fy={ci.fy:.1f} cx={ci.cx:.1f} cy={ci.cy:.1f} "
               f"model={ci.distortion_model}")
 
-    tracker = None
-    if trk_cfg.get("enabled", True) and not args.no_track:
-        tracker = IouTracker(
-            iou_threshold=trk_cfg["iou_threshold"],
-            max_misses=trk_cfg["max_misses"],
-            smoothing=trk_cfg["smoothing"],
-            same_class_only=trk_cfg["same_class_only"],
-        )
-    pipeline = DetectionPipeline(
-        detector,
-        tracker=tracker,
-        camera_info=source.camera_info,
-        dynamic_classes=pipe_cfg["dynamic_classes"],
-        undistort_angles=pipe_cfg["undistort_angles"],
-        border_margin_px=pipe_cfg["border_margin_px"],
-    )
+    t0 = time.perf_counter()
+    pipeline = build_pipeline(cfg, REPO_ROOT / "models", camera_info=source.camera_info)
+    print(f"detector: {pipeline.detector!r}  (loaded + warm in {time.perf_counter() - t0:.1f} s)")
 
     # -- sinks ---------------------------------------------------------------
     writer = None

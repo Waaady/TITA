@@ -17,43 +17,62 @@ obstacle is reported, the robot has already reached it. Two policies:
     producer. Nothing is dropped. Only for offline work where every frame of
     a recording must be processed (evaluation, extracting frames).
 
-Both are thread-safe and share the same three-method interface so the
+Both are thread-safe and share the :class:`FrameBuffer` interface so the
 pipeline does not care which one it is given.
 """
 
 from __future__ import annotations
 
 import threading
+from abc import ABC, abstractmethod
 from collections import deque
-from typing import Optional, Protocol
+from typing import Callable, Optional
 
 from .frame import Frame
 
 
-class FrameBuffer(Protocol):
-    """Interface implemented by both buffer policies."""
+class FrameBuffer(ABC):
+    """Common interface: ``put`` from the producer thread, ``get`` from the
+    consumer thread, ``close`` once the producer is done."""
 
+    def __init__(self) -> None:
+        self._cond = threading.Condition()
+        self._closed = False
+
+    def _wait(self, ready: Callable[[], bool], timeout: Optional[float]) -> bool:
+        """Block until ``ready()`` or closed. Caller must hold the lock."""
+        return self._cond.wait_for(lambda: ready() or self._closed, timeout)
+
+    @abstractmethod
     def put(self, frame: Frame) -> None: ...
 
+    @abstractmethod
     def get(self, timeout: Optional[float] = None) -> Optional[tuple[Frame, int]]:
         """Block for the next frame. Returns ``(frame, dropped_since_last)``
         or ``None`` when closed and drained (or on timeout)."""
-        ...
 
-    def close(self) -> None: ...
+    def close(self) -> None:
+        with self._cond:
+            self._closed = True
+            self._cond.notify_all()
 
     @property
-    def dropped_total(self) -> int: ...
+    def closed(self) -> bool:
+        with self._cond:
+            return self._closed
+
+    @property
+    def dropped_total(self) -> int:
+        return 0
 
 
-class LatestFrameSlot:
+class LatestFrameSlot(FrameBuffer):
     """Keep only the newest frame; drop and count everything the consumer
     did not get to in time."""
 
     def __init__(self) -> None:
-        self._cond = threading.Condition()
+        super().__init__()
         self._frame: Optional[Frame] = None
-        self._closed = False
         self._dropped_pending = 0
         self._dropped_total = 0
 
@@ -70,44 +89,32 @@ class LatestFrameSlot:
 
     def get(self, timeout: Optional[float] = None) -> Optional[tuple[Frame, int]]:
         with self._cond:
-            if self._frame is None and not self._closed:
-                self._cond.wait_for(lambda: self._frame is not None or self._closed, timeout)
+            self._wait(lambda: self._frame is not None, timeout)
             if self._frame is None:
                 return None
-            frame, dropped = self._frame, self._dropped_pending
+            item = (self._frame, self._dropped_pending)
             self._frame, self._dropped_pending = None, 0
-            return frame, dropped
-
-    def close(self) -> None:
-        with self._cond:
-            self._closed = True
-            self._cond.notify_all()
+            return item
 
     @property
     def dropped_total(self) -> int:
         with self._cond:
             return self._dropped_total
 
-    @property
-    def closed(self) -> bool:
-        with self._cond:
-            return self._closed
 
-
-class FrameQueue:
+class FrameQueue(FrameBuffer):
     """Bounded FIFO with back-pressure. Never drops."""
 
     def __init__(self, maxsize: int = 8) -> None:
         if maxsize < 1:
             raise ValueError("maxsize must be >= 1")
-        self._cond = threading.Condition()
+        super().__init__()
         self._items: deque[Frame] = deque()
         self._maxsize = maxsize
-        self._closed = False
 
     def put(self, frame: Frame) -> None:
         with self._cond:
-            self._cond.wait_for(lambda: len(self._items) < self._maxsize or self._closed)
+            self._wait(lambda: len(self._items) < self._maxsize, None)
             if self._closed:
                 return
             self._items.append(frame)
@@ -115,27 +122,12 @@ class FrameQueue:
 
     def get(self, timeout: Optional[float] = None) -> Optional[tuple[Frame, int]]:
         with self._cond:
-            if not self._items and not self._closed:
-                self._cond.wait_for(lambda: bool(self._items) or self._closed, timeout)
+            self._wait(lambda: bool(self._items), timeout)
             if not self._items:
                 return None
             frame = self._items.popleft()
-            self._cond.notify_all()
+            self._cond.notify_all()  # a blocked producer may continue
             return frame, 0
-
-    def close(self) -> None:
-        with self._cond:
-            self._closed = True
-            self._cond.notify_all()
-
-    @property
-    def dropped_total(self) -> int:
-        return 0
-
-    @property
-    def closed(self) -> bool:
-        with self._cond:
-            return self._closed
 
 
 def make_frame_buffer(policy: str, queue_size: int = 8) -> FrameBuffer:

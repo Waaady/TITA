@@ -58,20 +58,49 @@ answers.
 
 ## 2. Robot — first time only: rosdep
 
+`rosdep` is not installed on TITA as delivered:
+
 ```bash
+sudo apt update
+sudo apt install python3-rosdep
 sudo rosdep init      # "already initialized" is fine
 rosdep update
 ```
 
 **Done when:** `rosdep update` ends without errors.
 
+### If `apt update` reports `EXPKEYSIG F42ED6FBAB17C654`
+
+The robot shipped with the Open Robotics signing key that expired in 2025.
+Until it is refreshed, **every** `apt install` of a ROS package fails with a
+404, because apt is stuck on a stale package index. The key is registered the
+legacy way (no `signed-by=` in `/etc/apt/sources.list.d/ros.list`), so the
+fix is to overwrite it in place:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key | sudo apt-key add -
+sudo apt update
+```
+
+Same key ID, expiry extended to 2030. The "apt-key is deprecated" warning
+is harmless. **Done when** the `packages.ros.org` line shows `Get:` or `Hit:`
+with no `EXPKEYSIG`.
+
+(Dropping the key into `/etc/apt/trusted.gpg.d/` does *not* work here — the
+old copy in `/etc/apt/trusted.gpg` shadows it.)
+
+> **Never `apt upgrade` on the Jetson.** JetPack, CUDA and the drivers are
+> pinned to specific versions; a blanket upgrade of 500+ packages can break
+> them. `apt update` refreshes the index only and is safe.
+
 ---
 
 ## 3. Robot — get the code
 
-First time:
+First time — `git` is not installed on TITA as delivered:
 
 ```bash
+sudo apt install git
 cd ~
 git clone https://github.com/Waaady/TITA.git
 cd ~/TITA

@@ -89,11 +89,42 @@ def test_process_packages_everything_downstream_needs():
     assert person.track.bearing_rate_rad_s > 0
     assert r0.detections[0].track.velocity_px_s is None
 
-    d = r1.to_dict()
+    d = r1.to_dict("expanded")
     assert d["detections"][0]["track"]["track_id"] == person.track.track_id
     import json
 
     json.dumps(d)  # must be serialisable as-is
+
+
+def test_minimal_record_is_the_default_and_flattens_track():
+    pipe = DetectionPipeline(FakeDetector(), tracker=IouTracker(smoothing=1.0), camera_info=_camera_info())
+    pipe.process(_frame(0))
+    r1 = pipe.process(_frame(1), dropped_since_last=3, dropped_total=3)
+    person = r1.detections[0]
+
+    d = r1.to_dict()
+    assert d == r1.to_dict("minimal")
+    assert set(d) == {"frame_seq", "stamp_ns", "frame_id", "detections"}
+    assert (d["frame_seq"], d["stamp_ns"], d["frame_id"]) == (1, 25_000_000, "cam")
+
+    p = d["detections"][0]
+    assert set(p) == {
+        "label", "score", "is_dynamic", "track_id", "confirmed", "bbox_xyxy", "bearing_rad", "foot_elevation_rad"
+    }
+    assert p["label"] == "person" and p["is_dynamic"]
+    assert p["track_id"] == person.track.track_id and p["confirmed"]
+    assert p["bbox_xyxy"] == person.bbox_xyxy
+    assert p["bearing_rad"] == pytest.approx(person.bearing_rad)
+    assert p["foot_elevation_rad"] == pytest.approx(person.foot_elevation_rad)
+
+    with pytest.raises(ValueError):
+        r1.to_dict("verbose")
+
+
+def test_minimal_record_without_tracker_has_null_identity():
+    r = DetectionPipeline(FakeDetector()).process(_frame(0))
+    p = r.to_dict()["detections"][0]
+    assert p["track_id"] is None and p["confirmed"] is False
 
 
 def test_without_camera_info_and_tracker_fields_are_none():

@@ -8,12 +8,35 @@ detector is included, but the judgement itself is **not** made here.
 Coordinates are pixels of the original camera image unless stated
 otherwise; angles follow :mod:`tita_perception.geometry` (bearing positive
 right, elevation positive down, camera optical frame).
+
+Two record modes when serialising (``to_dict``):
+
+``minimal`` (default)
+    What a consumer needs to *act* on a detection and nothing else: when and
+    from which camera, what, how sure, can it move, which track, where in
+    the image, and the two angles. Track identity is flattened into the
+    detection. Everything left out is either derivable from these fields
+    plus the camera geometry, or is telemetry about the detector rather
+    than about the scene.
+
+``expanded``
+    Every field of every dataclass, nested as declared. For benchmarking
+    (per-frame timing, drop counts), threshold analysis (``obj_conf`` /
+    ``cls_conf``) and re-deriving geometry.
 """
 
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from typing import Any, Optional
+from typing import Any, Literal, Optional
+
+RecordMode = Literal["minimal", "expanded"]
+RECORD_MODES: tuple[str, ...] = ("minimal", "expanded")
+
+
+def _check_mode(mode: str) -> None:
+    if mode not in RECORD_MODES:
+        raise ValueError(f"unknown record mode {mode!r}, expected one of {RECORD_MODES}")
 
 
 @dataclass
@@ -57,6 +80,22 @@ class ObstacleObservation:
     # -- identity over time --------------------------------------------------
     track: Optional[TrackInfo]
 
+    def to_dict(self, mode: RecordMode = "minimal") -> dict[str, Any]:
+        _check_mode(mode)
+        if mode == "expanded":
+            return asdict(self)
+        track = self.track
+        return {
+            "label": self.label,
+            "score": self.score,
+            "is_dynamic": self.is_dynamic,
+            "track_id": track.track_id if track else None,
+            "confirmed": track.confirmed if track else False,
+            "bbox_xyxy": self.bbox_xyxy,
+            "bearing_rad": self.bearing_rad,
+            "foot_elevation_rad": self.foot_elevation_rad,
+        }
+
 
 @dataclass
 class FrameResult:
@@ -78,5 +117,13 @@ class FrameResult:
     # -- content ------------------------------------------------------------
     detections: list[ObstacleObservation] = field(default_factory=list)
 
-    def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+    def to_dict(self, mode: RecordMode = "minimal") -> dict[str, Any]:
+        _check_mode(mode)
+        if mode == "expanded":
+            return asdict(self)
+        return {
+            "frame_seq": self.frame_seq,
+            "stamp_ns": self.stamp_ns,
+            "frame_id": self.frame_id,
+            "detections": [o.to_dict(mode) for o in self.detections],
+        }

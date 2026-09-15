@@ -14,7 +14,7 @@ from our own code?) is on the critical path and should be settled first.
 
 | Directory | Contents |
 |---|---|
-| `guides/` | Step-by-step walkthroughs: [object-detection-pipeline.md](guides/object-detection-pipeline.md) and the [ros2-command-reference.md](guides/ros2-command-reference.md). |
+| `guides/` | Step-by-step walkthroughs: [object-detection-pipeline.md](guides/object-detection-pipeline.md), [deploy-to-robot.md](guides/deploy-to-robot.md) and the [ros2-command-reference.md](guides/ros2-command-reference.md). |
 | `adr/` | Architecture Decision Records — see [adr/README.md](adr/README.md). |
 | `architecture/` | System diagrams, node/topic graphs, TF trees, data flow. |
 | `hardware/` | Sensor datasheets, wiring, mounting, robot serial and configuration, network setup. |

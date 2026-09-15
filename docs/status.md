@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated: 2026-09-13**
+**Last updated: 2026-09-15**
 
 A living document. Update it whenever something is verified, decided, or ruled
 out — it is the first thing to read when picking the project back up.
@@ -28,11 +28,11 @@ result — but it must not become the main line of investigation.
 | Area | State |
 |---|---|
 | Repository scaffold | **Done.** Folders, dependency manifests, module contracts. |
-| ROS 2 packages | `tita_perception` is a complete `ament_python` package: `detector_node` + launch + params written 2026-09-14, **not yet built or run** (no ROS 2 on the workstation). Other packages still empty. |
-| Robot access | **Working.** SSH, topics inspected, bags recorded. |
+| ROS 2 packages | `tita_perception` **builds on the robot** (colcon, 2026-09-15). First launch reached `build_pipeline` — all ROS plumbing works — then failed on a missing `onnxruntime`; fixed, numpy pinned `<2`, **verification pending** (robot shut down). Other packages still empty. |
+| Robot access | **Working.** SSH, topics inspected, bags recorded. Repo cloned on the robot. See [work_diary/](work_diary/) for the session log. |
 | Object detection | **Phases 4–5 done offline (2026-09-13):** YOLOX-s runs on bag frames through both ONNX Runtime and PyTorch, with the newest-frame policy and tracking. See [../src/tita_perception/README.md](../src/tita_perception/README.md). Phase 3/6 (ROS node, Foxglove) not started. |
 | Mapping | Not started. |
-| Git | Scaffold and docs committed. Detection code is in the working tree, not yet committed. |
+| Git | Code committed (`81f824e`). Docs from 2026-09-15 (restored hardware docs, deploy guide, work diary) **uncommitted** — commit first next session. |
 
 ---
 
@@ -52,6 +52,8 @@ Measured on the machine, not taken from the datasheet.
 |---|---|---|
 | `ros-humble-rosbag2-storage-mcap` | **not installed** | Bags are recorded as `sqlite3` `.db3`, not MCAP. Foxglove still opens them (all recorded types are ROS standard messages). |
 | `tmux` | **not installed** | Long-running commands die with the SSH session. Use `nohup`, or install tmux once the robot has internet. |
+| `git`, `rosdep`, `colcon`, `python3-pip` | **were not installed** — installed 2026-09-15 | TITA ships a runtime-only ROS. |
+| ROS apt signing key | **was expired** — refreshed 2026-09-15 | Until then no ROS package could be installed at all; explains the missing MCAP plugin and tmux. See [guides/deploy-to-robot.md](guides/deploy-to-robot.md) step 2. |
 
 Installing either needs internet on the robot, which means **client WiFi mode**,
 not AP mode — the two are mutually exclusive on TITA.

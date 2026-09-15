@@ -132,6 +132,7 @@ Found while deploying; all fixable once the robot is in client WiFi mode.
 |---|---|
 | `git` | `sudo apt install git` |
 | `rosdep` | `sudo apt install python3-rosdep` |
+| `colcon` | `sudo apt install python3-colcon-common-extensions` |
 | `tmux` | `sudo apt install tmux` |
 | `ros-humble-rosbag2-storage-mcap` | `sudo apt install ros-humble-rosbag2-storage-mcap` |
 

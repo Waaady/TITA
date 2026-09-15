@@ -141,9 +141,20 @@ prints `ok`.
 
 ## 5. Robot — ONNX Runtime
 
+The node runs under `/usr/bin/python3` (the interpreter ROS uses). Install
+into exactly that one — a bare `pip3` may belong to a different Python on this
+machine:
+
 ```bash
-pip3 install onnxruntime
+sudo apt install python3-pip        # not installed as delivered
+/usr/bin/python3 -m pip install onnxruntime "numpy<2"
 ```
+
+**`"numpy<2"` is not optional.** `onnxruntime` pulls numpy 2.x as a dependency,
+and ROS Humble's `cv_bridge` is compiled against the 1.x ABI — the node then
+dies on the first image. Pinning `<2` in the same command keeps pip from
+upgrading it. Ignore the warning that `opencv-python` is "not installed":
+`cv2` is present from JetPack, just not under the pip package name.
 
 **CPU build on purpose.** It proves the plumbing. The GPU build for aarch64 does
 not come from PyPI — that is a later, separate step
@@ -158,9 +169,11 @@ not come from PyPI — that is a later, separate step
 
 **Done when:**
 ```bash
-python3 -c "import onnxruntime as o, cv2, numpy as n; print(o.__version__, cv2.__version__, n.__version__)"
+/usr/bin/python3 -c "import numpy, cv2, cv_bridge, onnxruntime as o; print(numpy.__version__, cv2.__version__, o.__version__)"
 ```
-prints three versions and numpy is `1.x`.
+prints three versions and numpy is `1.x`. If `cv2` or `cv_bridge` fails to
+import with a message about `numpy.core.multiarray`, numpy 2.x slipped in —
+rerun the install line above.
 
 ---
 
@@ -177,10 +190,25 @@ python3 scripts/download_yolox_weights.py
 
 ## 7. Robot — build
 
+`colcon` is not installed on TITA as delivered:
+
+```bash
+sudo apt install python3-colcon-common-extensions
+```
+
+Then:
+
 ```bash
 cd ~/TITA
 colcon build --symlink-install --packages-select tita_perception
 source install/setup.bash
+```
+
+`source` applies to the current terminal only. To have it happen on every
+login:
+
+```bash
+echo "source ~/TITA/install/setup.bash" >> ~/.bashrc
 ```
 
 `--symlink-install` means later edits to the Python files take effect without

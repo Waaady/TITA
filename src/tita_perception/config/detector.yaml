@@ -5,11 +5,11 @@
 # once the node exists (see README).
 
 detector:
-  backend: onnx                 # onnx | torch
-  input_size: [640, 640]        # [height, width] the network runs at
+  backend: onnx                 # onnx | torch | tensorrt
+  input_size: [640, 640]        # [height, width] the network runs at; must match the engine for tensorrt
   conf_threshold: 0.3           # objectness * class confidence
   nms_threshold: 0.45           # IoU for class-aware NMS
-  device: cpu                   # onnx: cpu | cuda | tensorrt   torch: cpu | cuda
+  device: cpu                   # onnx: cpu | cuda | tensorrt   torch: cpu | cuda   tensorrt: ignored (always GPU)
   # class_names: null           # default: 80 COCO classes (pretrained weights)
   # class_whitelist: [person, chair]   # by name; null = all classes
 
@@ -23,6 +23,10 @@ detector:
     exp_name: yolox-s           # architecture; must match the checkpoint
     exp_file: null              # or a perception/configs/*.py experiment file
     fp16: false                 # CUDA only
+
+  tensorrt:                     # Jetson only. Engine is built ON THE ROBOT: scripts/build_engine.sh
+    engine_path: tensorrt/yolox_s_fp16.engine
+    decoded_output: false       # engine from the official export = raw grid output
 
 pipeline:
   # latest: one-slot buffer, always detect on the newest frame, drop the rest

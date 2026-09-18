@@ -1,32 +1,65 @@
 # ---------------------------------------------------------------------------
 # On-robot dependencies - Jetson Orin NX 16GB, JetPack 6.0 (L4T r36.3),
-# Ubuntu 22.04, Python 3.10, ROS 2 Humble.
+# CUDA 12.2, Ubuntu 22.04, Python 3.10, ROS 2 Humble.
 #
-# DO NOT `pip install -r requirements.txt` on the Jetson. PyPI has no aarch64
-# CUDA wheels; you would silently get a CPU-only torch and lose ~100 TOPS.
+# Install into the interpreter ROS uses, and pin numpy in the same command:
 #
-#   pip install --no-cache-dir \
-#       --extra-index-url https://pypi.jetson-ai-lab.dev/jp6/cu122 \
-#       -r requirements-jetson.txt
+#   sudo apt install python3-pip
+#   /usr/bin/python3 -m pip install -r requirements-jetson.txt
 #
-# Already provided by JetPack - never pip-install these:
-#   cv2 (CUDA-enabled OpenCV), tensorrt, pycuda, cuda-python
-# Already provided by apt (/opt/ros/humble) - never pip-install these:
-#   rclpy, cv_bridge, tf2_ros, sensor_msgs_py
+# DO NOT `pip install -r requirements.txt` on the Jetson - it would pull a
+# CPU-only torch and desktop CUDA wheels that cannot load here.
+#
+# Never pip-install on the Jetson:
+#   opencv-python   JetPack ships cv2; the PyPI wheel replaces it with a
+#                   CPU-only build and breaks the camera pipeline
+#   numpy>=2        ROS Humble's cv_bridge is built against the 1.x ABI
+#   tensorrt, pycuda, cuda-python   come with JetPack
+#   rclpy, cv_bridge, tf2_ros       come from apt (/opt/ros/humble)
+#
+# Verified 2026-09-18: the CPU path below runs detector_node on the robot
+# (YOLOX-s 640: ~1.1 s/frame - not navigation-grade, but proves the plumbing).
 # ---------------------------------------------------------------------------
 
+# --- CPU inference (works today, deploy guide step 5) ----------------------
 numpy>=1.24,<2.0
-scipy>=1.10,<2.0
 pyyaml>=6.0
-loguru>=0.7
-tqdm>=4.66
+onnxruntime>=1.17            # aarch64 CPU wheel is on PyPI
 
-# CUDA builds for aarch64 - resolved from the jetson-ai-lab index above.
-torch==2.3.0
-torchvision==0.18.0
-onnx>=1.15
-onnxruntime-gpu>=1.17
+# --- GPU inference: NOT pip-installable for JetPack 6.0 ---------------------
+#
+# NVIDIA withdrew the prebuilt CUDA 12.2 wheels in 2025 ("limited resources").
+# The Jetson AI Lab index (https://pypi.jetson-ai-lab.io/) now only serves
+# jp6/cu126, cu128, cu129 - those need JetPack 6.1+ and will not load on 6.0.
+# Do not add --extra-index-url for it here; the old .dev URL is 410 Gone.
+#
+# Working routes for JetPack 6.0, in order of preference:
+#
+#   1. TensorRT natively. JetPack 6.0 ships TensorRT 8.6 + trtexec. Build the
+#      engine ON THE ROBOT (engines are device- and version-locked):
+#        /usr/src/tensorrt/bin/trtexec --onnx=models/onnx/yolox_s.onnx \
+#            --saveEngine=models/tensorrt/yolox_s_fp16.engine --fp16
+#      Needs a TensorRT detector backend in tita_perception (not yet written)
+#      and pycuda for buffer handling (pip builds it against JetPack's CUDA).
+#
+#   2. onnxruntime-gpu wheel for JetPack 6.0 / cp310 from the Jetson Zoo
+#      (https://elinux.org/Jetson_Zoo, ONNX Runtime section), if still
+#      hosted. Uninstall the CPU onnxruntime first, install the .whl, then
+#      set detector.device: cuda. Zero code changes.
+#
+#   3. PyTorch 2.4 for JetPack 6.0 - verified available at
+#      https://developer.nvidia.com/w/compute/redist/jp/v60/pytorch/
+#      (~1.5 GB). torchvision must then be built from source to match, and
+#      the yolox package installed with --no-deps (it lists opencv-python).
+#      Works, but puts a training framework on the robot.
+#
+#   4. jetson-containers (NVIDIA's own recommendation) - Docker image with
+#      onnxruntime-gpu prebuilt for r36.3. Robust, but ROS inside a
+#      container is extra integration work; see docker/README.md.
+#
+#   Do NOT upgrade JetPack to 6.1/6.2 to get the pip index back: the DDT SDK
+#   is built for 6.0 and may break.
 
-# TensorRT engine building / benchmarking helpers
-polygraphy>=0.49
-pycuda>=2024.1               # only if JetPack's build is unavailable
+# --- Optional: TensorRT tooling ---------------------------------------------
+# polygraphy>=0.49          # engine inspection / ONNX-vs-TRT comparison
+# pycuda>=2024.1            # for route 1; builds from source, ~5 min

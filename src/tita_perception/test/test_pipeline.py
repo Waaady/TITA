@@ -231,3 +231,51 @@ def test_onnx_and_torch_backends_agree():
     for da, db in zip(a, b):
         assert da.score == pytest.approx(db.score, abs=2e-2)
         np.testing.assert_allclose(da.xyxy, db.xyxy, atol=2.0)
+
+
+def test_tensorrt_backend_reports_missing_engine_before_needing_the_library(tmp_path):
+    """The factory wires up backend 'tensorrt', and a forgotten engine build
+    is a FileNotFoundError naming the path - checked before importing
+    tensorrt, so this runs on machines without it."""
+    cfg = {"backend": "tensorrt", "tensorrt": {"engine_path": "tensorrt/nope.engine"}}
+    with pytest.raises(FileNotFoundError, match="nope.engine"):
+        build_detector(cfg, tmp_path)
+
+
+TRT_ENGINE = REPO_ROOT / "models" / "tensorrt" / "yolox_s_fp16.engine"
+
+
+@pytest.mark.skipif(not (ONNX_MODEL.exists() and TRT_ENGINE.exists()), reason="needs onnx model + built engine")
+def test_onnx_and_tensorrt_backends_agree():
+    """Engine equivalence: an FP16 engine built from the ONNX file must give
+    the same boxes on a real frame, within FP16 rounding. Only runs on the
+    robot, where the engine exists."""
+    pytest.importorskip("tensorrt")
+    pytest.importorskip("pycuda")
+    from tita_perception.bag import Rosbag2SqliteReader
+
+    bag = REPO_ROOT / "data" / "bags" / "2026-09-04_lab_moving_01" / "indoor_run_03_0.db3"
+    if bag.exists():
+        with Rosbag2SqliteReader(bag) as r:
+            _, img = next(r.images(r.find_topic("perception/camera/image/left")))
+            image = img.to_bgr()
+    else:
+        rng = np.random.default_rng(0)
+        image = rng.integers(0, 255, (600, 960, 3), dtype=np.uint8)
+
+    common = {"conf_threshold": 0.3, "nms_threshold": 0.45}
+    onnx = build_detector(
+        {"backend": "onnx", "device": "cpu", "onnx": {"model_path": "onnx/yolox_s.onnx"}, **common},
+        REPO_ROOT / "models",
+    )
+    trt = build_detector(
+        {"backend": "tensorrt", "tensorrt": {"engine_path": "tensorrt/yolox_s_fp16.engine"}, **common},
+        REPO_ROOT / "models",
+    )
+    a = sorted(onnx.detect(image), key=lambda d: (d.class_id, d.x1))
+    b = sorted(trt.detect(image), key=lambda d: (d.class_id, d.x1))
+    assert [d.class_id for d in a] == [d.class_id for d in b]
+    for da, db in zip(a, b):
+        assert da.score == pytest.approx(db.score, abs=5e-2)  # FP16: a little looser than torch-vs-onnx
+        np.testing.assert_allclose(da.xyxy, db.xyxy, atol=3.0)
+    trt.close()

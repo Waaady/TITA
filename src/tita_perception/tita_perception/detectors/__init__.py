@@ -30,12 +30,13 @@ def build_detector(
 
     Layout (see ``config/detector.yaml``)::
 
-        backend: onnx | torch
+        backend: onnx | torch | tensorrt
         input_size, conf_threshold, nms_threshold, device   # shared
         class_names: [...]        # optional, default COCO
         class_whitelist: [...]    # optional, by name
-        onnx:  {model_path, decoded_output, num_threads}
-        torch: {checkpoint_path, exp_name, exp_file, fp16}
+        onnx:     {model_path, decoded_output, num_threads}
+        torch:    {checkpoint_path, exp_name, exp_file, fp16}
+        tensorrt: {engine_path, decoded_output}
 
     Relative model paths are resolved against ``models_root``.
     """
@@ -74,4 +75,13 @@ def build_detector(
             class_names=class_names, class_whitelist=whitelist, **common, **opts
         )
 
-    raise ValueError(f"unknown detector backend {backend!r}; expected 'onnx' or 'torch'")
+    if backend == "tensorrt":
+        from .yolox_tensorrt import YoloxTensorRTDetector
+
+        opts = dict(config.get("tensorrt") or {})
+        opts["engine_path"] = resolve(opts.get("engine_path"))
+        return YoloxTensorRTDetector(
+            class_names=class_names, class_whitelist=whitelist, **common, **opts
+        )
+
+    raise ValueError(f"unknown detector backend {backend!r}; expected 'onnx', 'torch' or 'tensorrt'")

@@ -102,6 +102,18 @@ edit-build-test loop entirely.
 Note that VS Code's server process runs on the Orin and costs CPU and RAM.
 Close it before taking latency measurements that go into the thesis.
 
+## The robot shuts itself down when idle
+
+Observed twice (2026-09-15, 2026-09-18): with the robot lying still and the
+remote controller switched off or timed out, TITA powers itself off after a
+while — a safety behaviour, not a fault. Both times it happened in the middle
+of a package installation, once leaving `dpkg` interrupted
+(`sudo dpkg --configure -a` repairs that).
+
+For anything that takes more than a few minutes over SSH — apt installs,
+`pip install pycuda`, `build_engine.sh` — **keep the remote controller on**
+and touch it occasionally so it does not go to standby itself.
+
 ## Sanity checks
 
 ```bash

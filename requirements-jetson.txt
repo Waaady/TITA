@@ -35,12 +35,18 @@ onnxruntime>=1.17            # aarch64 CPU wheel is on PyPI
 #
 # Working routes for JetPack 6.0, in order of preference:
 #
-#   1. TensorRT natively. JetPack 6.0 ships TensorRT 8.6 + trtexec. Build the
-#      engine ON THE ROBOT (engines are device- and version-locked):
-#        /usr/src/tensorrt/bin/trtexec --onnx=models/onnx/yolox_s.onnx \
-#            --saveEngine=models/tensorrt/yolox_s_fp16.engine --fp16
-#      Needs a TensorRT detector backend in tita_perception (not yet written)
-#      and pycuda for buffer handling (pip builds it against JetPack's CUDA).
+#   1. TensorRT natively - DONE 2026-09-18, this is the deployed path.
+#      TITA ships the TensorRT *runtime* libraries only. The Python binding,
+#      trtexec, the CUDA compiler and two header packages had to be added:
+#        sudo apt install python3-libnvinfer libnvinfer-bin cuda-nvcc-12-2 \
+#                         cuda-profiler-api-12-2 libcurand-dev-12-2
+#      Then pycuda, built from source against JetPack's CUDA (~5 min):
+#        export PATH=/usr/local/cuda/bin:$PATH CUDA_ROOT=/usr/local/cuda
+#        /usr/bin/python3 -m pip install pycuda
+#      Then the engine, ON THE ROBOT (device- and version-locked):
+#        bash scripts/build_engine.sh          # trtexec, fp16, ~10 min
+#      Backend: tita_perception/detectors/yolox_tensorrt.py (TensorRT 8.6 API).
+#      Measured: trtexec GPU compute 7.2 ms/frame vs ~1100 ms on the CPU.
 #
 #   2. onnxruntime-gpu wheel for JetPack 6.0 / cp310 from the Jetson Zoo
 #      (https://elinux.org/Jetson_Zoo, ONNX Runtime section), if still

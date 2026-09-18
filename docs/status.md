@@ -1,6 +1,6 @@
 # Project status
 
-**Last updated: 2026-09-15**
+**Last updated: 2026-09-18**
 
 A living document. Update it whenever something is verified, decided, or ruled
 out — it is the first thing to read when picking the project back up.
@@ -28,11 +28,11 @@ result — but it must not become the main line of investigation.
 | Area | State |
 |---|---|
 | Repository scaffold | **Done.** Folders, dependency manifests, module contracts. |
-| ROS 2 packages | `tita_perception` **builds on the robot** (colcon, 2026-09-15). First launch reached `build_pipeline` — all ROS plumbing works — then failed on a missing `onnxruntime`; fixed, numpy pinned `<2`, **verification pending** (robot shut down). Other packages still empty. |
+| ROS 2 packages | `tita_perception` **runs live on the robot** (2026-09-18). Three backends: ONNX CPU (~1100 ms/frame), and **TensorRT FP16 on the GPU: ~18 ms/frame, 4 % dropped** — see [experiments/2026-09-18-detector-latency-cpu-vs-tensorrt.md](experiments/2026-09-18-detector-latency-cpu-vs-tensorrt.md). Other packages still empty. |
 | Robot access | **Working.** SSH, topics inspected, bags recorded. Repo cloned on the robot. See [work_diary/](work_diary/) for the session log. |
-| Object detection | **Phases 4–5 done offline (2026-09-13):** YOLOX-s runs on bag frames through both ONNX Runtime and PyTorch, with the newest-frame policy and tracking. See [../src/tita_perception/README.md](../src/tita_perception/README.md). Phase 3/6 (ROS node, Foxglove) not started. |
+| Object detection | **Phases 3–5 and 8 done (2026-09-18):** node runs live on the Jetson GPU. Phase 6 (Foxglove boxes) and 7 (3D) not started. Detection *quality* on the robot not yet inspected — only speed. |
 | Mapping | Not started. |
-| Git | Code committed (`81f824e`). Docs from 2026-09-15 (restored hardware docs, deploy guide, work diary) **uncommitted** — commit first next session. |
+| Git | Last commit `b11a32c`. **Everything from 2026-09-18 is uncommitted** (TensorRT backend, experiment, diary, docs) — commit first next session. Config on the robot diverges from the repo (`backend: tensorrt` vs `onnx`) — see [work_diary/2026-09-18.md](work_diary/2026-09-18.md). |
 
 ---
 
@@ -53,6 +53,7 @@ Measured on the machine, not taken from the datasheet.
 | `ros-humble-rosbag2-storage-mcap` | **not installed** | Bags are recorded as `sqlite3` `.db3`, not MCAP. Foxglove still opens them (all recorded types are ROS standard messages). |
 | `tmux` | **not installed** | Long-running commands die with the SSH session. Use `nohup`, or install tmux once the robot has internet. |
 | `git`, `rosdep`, `colcon`, `python3-pip` | **were not installed** — installed 2026-09-15 | TITA ships a runtime-only ROS. |
+| TensorRT Python binding, `trtexec`, `nvcc`, CUDA headers, `pycuda` | **were not installed** — installed 2026-09-18 | TITA ships the TensorRT/CUDA *runtime* libraries only. Package list in `requirements-jetson.txt`. |
 | ROS apt signing key | **was expired** — refreshed 2026-09-15 | Until then no ROS package could be installed at all; explains the missing MCAP plugin and tmux. See [guides/deploy-to-robot.md](guides/deploy-to-robot.md) step 2. |
 
 Installing either needs internet on the robot, which means **client WiFi mode**,
@@ -138,8 +139,12 @@ Implemented in `src/tita_perception/` (pure Python, no ROS), run via
 
 ## Next steps
 
-1. Commit the detection code.
-2. Phase 3/5: build and run `detector_node` on a ROS 2 machine (Jetson or
+1. **Commit** — everything from 2026-09-18 is in the working tree only.
+2. Look at one live detection: `ros2 topic echo /tita3037072/perception/detections --once`.
+3. Resolve the config divergence: `config/detector_jetson.yaml` + `config_file` launch argument.
+4. Run `test_onnx_and_tensorrt_backends_agree` on the robot (needs `pytest` there).
+5. Phase 6: `ImageAnnotations` publisher + `foxglove_bridge` → boxes over the live image.
+6. Settle the open questions below, especially the missing `point_cloud` (blocks phase 7).
    WSL/Ubuntu 22.04) against `ros2 bag play`; fix what breaks.
 3. Phase 6: Foxglove `ImageAnnotations` + layout.
 4. Approach / path-intrusion component consuming the `FrameResult` record.

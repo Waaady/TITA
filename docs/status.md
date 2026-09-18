@@ -112,7 +112,7 @@ commanded from our own code at all, which is on the critical path.
 | # | Question | How to settle it |
 |---|---|---|
 | 1 | Why is `camera/point_cloud` not published? | Find what should produce it in the SDK. Blocks phase 7. |
-| 2 | Is `command/manager/cmd_twist` an input or the command manager's output? | `ros2 topic info /tita3037072/command/manager/cmd_twist --verbose` — decides whether the locomotion bridge is a converter or just a remap. |
+| 2 | ~~Is `command/manager/cmd_twist` an input or the command manager's output?~~ **Resolved 2026-09-18: output** (`command_manager_node` publishes, `hw_broadcaster_node` subscribes). Never publish to it. The bridge is a Twist → `LocomotionCmd` converter into `command/user/command`. | Next: `ros2 interface show tita_locomotion_interfaces/msg/LocomotionCmd`. |
 | 3 | Is a TITA Tower physically attached? | `ros2 topic hz /tower/mapping/odometry`. If yes, there is a LiDAR and the mapping chapter changes shape. See [hardware/topic-map.md](hardware/topic-map.md). |
 | 4 | Which node publishes the camera images? | `ros2 topic info /tita3037072/perception/camera/image/left --verbose`. No camera driver node appeared in `ros2 node list`, which is odd — and the answer probably also explains question 1. |
 | 5 | Actual sensor part numbers and manufacturers | Not yet determined. Topic names give only functional roles. Needs `dmesg`, `/dev/v4l/by-id/`, `/sys/bus/i2c/devices/`, device tree. Needed for the hardware chapter. |

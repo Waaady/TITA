@@ -13,7 +13,7 @@ were none.
 | # | Risk | Impact | Likelihood | Status |
 |---|---|---|---|---|
 | R1 | Vendor SDK is a black box and partly non-functional | High | **High** | open |
-| R2 | Cannot command the robot from our own code | **Critical** | Medium | open |
+| R2 | Cannot command the robot from our own code | **Critical** | Medium | **narrowed 2026-09-18** — input path known (`command/user/command`, `LocomotionCmd`); `cmd_twist` confirmed as an output, off limits. Converter not yet written, "robot moves one metre" milestone still open |
 | R3 | Nav2 tuning on a balancing platform | High | High | open |
 | R4 | Mapping *while* driving is harder than map-then-navigate | Medium | High | open |
 | R5 | `camera/point_cloud` has no publisher | Medium | **Confirmed** | open |
@@ -53,25 +53,30 @@ line.
 **The critical-path risk.** Everything else is decoration if the robot cannot be
 driven from a node we write.
 
-Two specific unknowns:
+**Settled 2026-09-18:** `command/manager/cmd_twist` is the command manager's
+**output** (`command_manager_node` publishes, `hw_broadcaster_node`
+subscribes). It must never be published to from our side. The input is the
+documented `command/user/command` with `LocomotionCmd`, so the bridge is a
+Twist → LocomotionCmd **converter**. See
+[hardware/topic-map.md](hardware/topic-map.md).
 
-- Is `command/manager/cmd_twist` an input we may publish to, or the command
-  manager's internal output? Unverified.
+Remaining unknowns:
+
+- The exact `LocomotionCmd` fields and semantics
+  (`ros2 interface show tita_locomotion_interfaces/msg/LocomotionCmd`).
 - The manual says the robot only accepts API commands after a human brings it to
   standing with the **remote controller** and selects *use-sdk mode*. Whether
   that can be done programmatically, and whether it survives a restart, is
   unknown. If a person must press a button before every autonomous run, that
-  constrains every experiment.
+  constrains every experiment. `locomotion/body/fsm_mode` should show the state.
 
-**Mitigation.** Resolve this **first**, before investing in perception.
+**Mitigation.** Write the converter next, with a watchdog and a hard velocity
+cap from day one.
 
 Milestone to aim for: *a node we wrote makes the robot roll one metre and stop.*
 Nothing else needs to work for that. A nasty surprise here is survivable in month
-1 and not in month 4.
-
-```bash
-ros2 topic info /tita3037072/command/manager/cmd_twist --verbose
-```
+1 and not in month 4. Constantin will decide when to hand over control from the
+remote — e-stop in reach, clear floor, remote always able to override.
 
 ---
 

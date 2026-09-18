@@ -285,10 +285,32 @@ Then:
 
 ```bash
 cd ~/TITA && source install/setup.bash
-ros2 launch tita_perception detection.launch.py namespace:=/tita3037072
+ros2 launch tita_perception detection.launch.py namespace:=/tita3037072 detector_config:=detector_jetson.yaml
 ```
 
 (`use_sim_time` defaults to false.)
+
+`detector_config:=detector_jetson.yaml` selects the TensorRT profile — the
+repo default `detector.yaml` is ONNX on CPU so it works on any machine. Both
+files live in git; **do not edit `detector.yaml` on the robot** to switch
+backends, that only creates a `git pull` conflict. The engine it needs is
+built with `bash scripts/build_engine.sh` (step 9a below).
+
+### 9a. Robot — TensorRT (done 2026-09-18, ~150x faster than CPU)
+
+One-time, see `requirements-jetson.txt` route 1 for the package list:
+
+```bash
+sudo apt install python3-libnvinfer libnvinfer-bin cuda-nvcc-12-2 cuda-profiler-api-12-2 libcurand-dev-12-2
+export PATH=/usr/local/cuda/bin:$PATH CUDA_ROOT=/usr/local/cuda
+/usr/bin/python3 -m pip install pycuda          # builds from source, ~5 min, keep the remote on
+sudo jetson_clocks
+bash scripts/build_engine.sh                     # ~10 min, prints a throughput benchmark at the end
+```
+
+**Done when** the launch log shows
+`detector: YoloxTensorRTDetector(yolox_s_fp16.engine, ...)` and `inference`
+sits around 15–20 ms with `dropped` staying near zero.
 
 **Done when:** `ros2 topic hz /tita3037072/perception/detections` reports a rate
 while someone walks in front of the robot.
@@ -325,7 +347,7 @@ git commit -am "..." ; git push
 # robot
 cd ~/TITA && git pull && colcon build --symlink-install --packages-select tita_perception
 source install/setup.bash
-ros2 launch tita_perception detection.launch.py namespace:=/tita3037072
+ros2 launch tita_perception detection.launch.py namespace:=/tita3037072 detector_config:=detector_jetson.yaml
 ```
 
 Or skip the round trip entirely: open `~/TITA` on the robot with **VS Code

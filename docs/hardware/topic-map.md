@@ -81,21 +81,40 @@ emits — so the conversion work in
 [`tita_locomotion_bridge`](../../src/tita_locomotion_bridge/) may be far smaller
 than originally assumed.
 
-### Unresolved: is `cmd_twist` an input or an output?
+### Resolved 2026-09-18: `cmd_twist` is an **output** — never publish to it
 
-The manual calls it the "final control command", which reads like the manager's
-*output* towards the low-level controller. If so, publishing to it would fight
-the manager rather than drive the robot. Settle it on the robot, it takes
-seconds:
+`ros2 topic info --verbose` on the robot:
 
-```bash
-ros2 topic info /tita3037072/command/manager/cmd_twist --verbose
+```
+Publisher:    command_manager_node   (/tita3037072)   RELIABLE
+Subscription: hw_broadcaster_node    (/tita3037072)   RELIABLE
 ```
 
-The publisher/subscriber node names in that output are decisive. **Do this
-before designing the bridge** — the answer determines whether the bridge is a
-message converter or just a remap plus a rate/limit guard. This is risk R2 in
-[../risks.md](../risks.md).
+`command_manager_node` *writes* `cmd_twist`; `hw_broadcaster_node` (the
+hardware layer) reads it. Publishing there from our side would put two
+publishers on one topic fighting each other. **Off limits.**
+
+Consequence: the input path is the documented one, `command/user/command`
+with `tita_locomotion_interfaces/LocomotionCmd`. The
+[`tita_locomotion_bridge`](../../src/tita_locomotion_bridge/) is therefore a
+**message converter** (Twist → LocomotionCmd), not a remap. Risk R2 in
+[../risks.md](../risks.md) is narrowed to "implement the converter and prove
+it moves the robot"; the architecture question is closed.
+
+```
+Nav2 ─Twist─▶ tita_locomotion_bridge ─LocomotionCmd─▶ command/user/command
+                                                            │
+                                                   command_manager_node
+                                                            │ cmd_twist
+                                                   hw_broadcaster_node ─▶ motors
+```
+
+Next read-only steps: `ros2 interface show tita_locomotion_interfaces/msg/LocomotionCmd`
+(the fields the bridge must fill) and `ros2 topic info .../command/user/command --verbose`
+(confirm `command_manager_node` subscribes there).
+
+`hw_broadcaster_node` did not appear in the 2026-09-04 node list either —
+further confirmation that list was partial.
 
 ## TITA Tower
 
